@@ -66,6 +66,28 @@ class AddLabel(Resource):
         note.update(push__label=label)
         return {'message': 'label added'}
 
+    def patch(self, id):
+        req_data = request.data
+        body = json.loads(req_data)
+        note = Notes.objects.filter(id=id, label=body.get('label')).first()
+        if not note:
+            return {'Error': 'label is not present in this note'}
+        list_label = note.label
+        list_label[list_label.index(body.get('label'))] = body.get('new_label')
+        note.update(label=list_label)
+        return {'message': 'label updated'}
+
+    def delete(self, id):
+        req_data = request.data
+        body = json.loads(req_data)
+        note = Notes.objects.filter(id=id, label=body.get('label')).first()
+        if not note:
+            return {'Error': 'label is not present in this note'}
+        list_label = note.label
+        list_label.remove(body.get('label'))
+        note.update(label=list_label)
+        return {'message': 'label removed'}
+
 
 class GetByLabel(Resource):
     def get(self, label):
@@ -102,7 +124,7 @@ class Home(Resource):
                 dict_all[data.user_name] = list_user
 
             return make_response(dict_all)
-
+        data_ = Notes.objects.filter(user_name=user_name).first()
         for data in data_:
             dict_ = {'id': data.id, 'topic': data.topic, 'desc': data.desc, 'label': data.label}
             list_notes.append(dict_)
