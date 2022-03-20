@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, EmailField, DateTimeField
+from mongoengine import Document, StringField, EmailField, DateTimeField, BooleanField
 import datetime
 
 
@@ -7,27 +7,15 @@ class Users(Document):
     name = StringField(max_length=50)
     email = EmailField(unique=True)
     password = StringField()
+    is_active = BooleanField(default=False)
+    is_super_user = BooleanField(default=False)
     dt_created = DateTimeField(default=datetime.datetime.now)
 
     def to_dict(self):
-        user_dict={
+        user_dict = {
             'user_name': self.user_name,
             'name': self.name,
             'email': self.email,
             'dt_created': self.dt_created
         }
         return user_dict
-
-
-class Notes(Document):
-    user_name = StringField(max_length=50)
-    topic = StringField(max_length=100)
-    desc = StringField(max_length=1000)
-
-    def to_dict(self):
-        notes_dict = {
-            'user_name': self.user_name,
-            'topic': self.topic,
-            'desc': self.desc
-        }
-        return notes_dict

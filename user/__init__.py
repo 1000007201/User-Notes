@@ -1,10 +1,12 @@
-from .apis import Registration, Login, LogOut, Home, AddNote, NotesOperation
+from .apis import Registration, Login, LogOut, ChangePass, Activate, ForgetPass, SetPass
 
-routes_ = [
+user_routes = [
     (Registration, '/registration'),
+    # (Registration_API, '/api/user/registration')
     (Login, '/login'),
     (LogOut, '/logout'),
-    (Home, '/'),
-    (AddNote, '/addnote'),
-    (NotesOperation, '/notes/<topic>')
+    (ChangePass, '/changepass'),
+    (Activate, '/activate'),
+    (ForgetPass, '/forget'),
+    (SetPass, '/setpass')
 ]

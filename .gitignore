@@ -351,4 +351,5 @@ MigrationBackup/
 
 venv
 .idea
-.env.py
+.env
+__pycache__

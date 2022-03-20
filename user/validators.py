@@ -1,4 +1,5 @@
-from .models import Users, Notes
+from .models import Users
+from flask import session
 
 
 def validate_registration(body):
@@ -22,24 +23,30 @@ def validate_registration(body):
     if user_email:
         return {'Error': 'Email already taken!!'}
 
-    return {'data': body}
-
 
 def validate_login(body):
     user_name = body.get('user_name')
     password = body.get('password')
-    user = Users.objects(user_name=user_name, password=password)
-    if not user:
+    if session['logged_in'] and session['user_name'] == body['user_name']:
+        return {'Error': 'You are already logged in'}
+    if session['logged_in'] and session['user_name'] != body['user_name']:
+        return {'Error': 'Another user is logged in'}
+    data_ = Users.objects(user_name=user_name, password=password).first()
+    if not data_:
         return {'Error': 'user_name not exist'}
+    if not data_.is_active:
+        return {'Error_active': 'your account is not activate yet check your registered mail id to activate account'}
     return {'data': body}
 
 
-def validate_addnotes(body):
-    topic = body.get('topic')
-    desc = body.get('desc')
-    if not topic or not desc:
-        return {'Error': 'You have to fill both parameters'}
-    note = Notes.objects(topic=topic)
-    if note:
-        return {'Error': 'Topic Already Exist'}
-    return {'data': body}
+def validate_change_pass(body):
+    user_name = session['user_name']
+    old_pass = body.get('old_password')
+    new_pass1 = body.get('new_password')
+    new_pass2 = body.get('Re-Enter new_password')
+
+    data_ = Users.objects.filter(user_name=user_name).first()
+    if data_.password != old_pass:
+        return {'Error': 'You have to enter right old password'}
+    if new_pass1 != new_pass2:
+        return {'Error': 'You have to re-enter password correctly'}

@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_restful import Api
 from db.utils import connect_db
-import user
+from routes import all_routes
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -13,7 +13,7 @@ connect_db()
 
 
 def confirm_api():
-    for data in user.routes_:
+    for data in all_routes:
         api_class = data[0]
         endpoint = data[1]
         api.add_resource(api_class, endpoint)
