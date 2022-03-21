@@ -1,5 +1,3 @@
-from .models import Notes
-from flask import session
 
 color_choices = ('red', 'green', 'blue', 'black')
 
@@ -15,8 +13,6 @@ def validate_add_notes(body):
 
 
 def validate_add_label(body):
-    if not session['logged_in']:
-        return {'Error': 'You have to login first'}
     label = body.get('label')
     if not label:
         return {'Error': 'Label can not be null'}

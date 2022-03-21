@@ -4,6 +4,7 @@ from .validators import validate_registration, validate_login, validate_change_p
 from .utils import get_token, token_required
 from .models import Users
 from common import utils
+from middleware import auth
 
 
 class Registration(Resource):
@@ -46,20 +47,21 @@ class Login(Resource):
 
 
 class ChangePass(Resource):
+    method_decorators = {'post': [auth.login_required]}
+
     def post(self):
-        if session['logged_in']:
-            req_data = request.data
-            body = json.loads(req_data)
-            validated_data = validate_change_pass(body)
-            if validated_data:
-                return make_response(validated_data, 409)
-            else:
-                user_name = session['user_name']
-                new_pass1 = body.get('new_password')
-                data_ = Users.objects.filter(user_name=user_name).first()
-                data_.update(password=new_pass1)
-                # logger.info(f'{user_name} changed his password')
-                return {'message': 'Your Password is Updated.'}
+        req_data = request.data
+        body = json.loads(req_data)
+        validated_data = validate_change_pass(body)
+        if validated_data:
+            return make_response(validated_data, 409)
+        else:
+            user_name = session['user_name']
+            new_pass1 = body.get('new_password')
+            data_ = Users.objects.filter(user_name=user_name).first()
+            data_.update(password=new_pass1)
+            # logger.info(f'{user_name} changed his password')
+            return {'message': 'Your Password is Updated.'}
 
 
 class ForgetPass(Resource):
@@ -81,8 +83,9 @@ class ForgetPass(Resource):
 
 
 class Activate(Resource):
-    @token_required
-    def get(user_name):
+    method_decorators = {'get': [token_required]}
+
+    def get(self, user_name):
         data = Users.objects.filter(user_name=user_name).first()
         data.update(is_active=True)
         # logger.info(f'User: {user_name} activated his account')
@@ -91,8 +94,9 @@ class Activate(Resource):
 
 
 class SetPass(Resource):
-    @token_required
-    def post(user_name):
+    method_decorators = {'post': [token_required]}
+
+    def post(self, user_name):
         data = Users.objects(UserName=user_name).first()
         password1 = request.form.get('new password')
         password2 = request.form.get('Re-Enter Password')

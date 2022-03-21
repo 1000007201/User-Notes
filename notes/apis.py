@@ -5,12 +5,13 @@ from .validators import validate_add_notes, validate_add_label
 from .utils import token_required
 from .models import Notes
 from user import models
+from middleware import auth
 
 
 class AddNote(Resource):
+    method_decorators = {'post': [auth.login_required]}
+
     def post(self):
-        if not session['logged_in']:
-            return {'message': 'You have to login first'}
         req_data = request.data
         body = json.loads(req_data)
         body['user_name'] = session['user_name']
@@ -24,9 +25,9 @@ class AddNote(Resource):
 
 
 class NotesOperation(Resource):
+    method_decorators = {'patch': [auth.login_required], 'delete': [auth.login_required]}
+
     def patch(self, id):
-        if not session['logged_in']:
-            return {'Error': 'You have to login first'}
         try:
             note = Notes.objects(id=id)
         except Exception as e:
@@ -36,8 +37,6 @@ class NotesOperation(Resource):
         return {'message': 'Notes updated'}
 
     def delete(self, id):
-        if not session['logged_in']:
-            return {'Error': 'You have to login first'}
         try:
             note = Notes.objects(id=id).first()
         except Exception as e:
@@ -47,6 +46,8 @@ class NotesOperation(Resource):
 
 
 class AddLabel(Resource):
+    method_decorators = {'post': [auth.login_required], 'patch': [auth.login_required], 'delete': [auth.login_required]}
+
     def post(self, id):
         try:
             req_data = request.data
@@ -90,9 +91,9 @@ class AddLabel(Resource):
 
 
 class GetByLabel(Resource):
+    method_decorators = {'get': [auth.login_required]}
+
     def get(self, label):
-        if not session['logged_in']:
-            return {'Error': 'You have to login first'}
         try:
             note = Notes.objects.filter(label=label)
         except Exception as e:
@@ -105,8 +106,9 @@ class GetByLabel(Resource):
 
 
 class Home(Resource):
-    @token_required
-    def get(user_name):
+    method_decorators = {'get': [token_required]}
+
+    def get(self, user_name):
         list_notes = []
         try:
             data_ = models.Users.objects.filter(user_name=user_name).first()
