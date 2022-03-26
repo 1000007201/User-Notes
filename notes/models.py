@@ -1,4 +1,6 @@
-from mongoengine import Document, StringField, SequenceField, ListField
+from mongoengine import Document, StringField, SequenceField, ListField, \
+    ImageField, ReferenceField, PULL
+from label import models
 
 color_choices = ('red', 'green', 'blue', 'black')
 
@@ -9,4 +11,5 @@ class Notes(Document):
     topic = StringField(max_length=100)
     desc = StringField(max_length=1000)
     color = StringField(choices=color_choices, default='black')
-    label = ListField(StringField(max_length=50))
+    image = ImageField()
+    label = ListField(ReferenceField(models.Label, reverse_delete_rule=PULL))
