@@ -1,9 +1,9 @@
-from mongoengine import Document, StringField, SequenceField
+from mongoengine import Document, IntField, StringField, SequenceField
 
 
 class Label(Document):
     id = SequenceField(primary_key=True)
-    user_name = StringField(max_length=50)
+    user_id = IntField()
     label = StringField(max_length=50)
 
 

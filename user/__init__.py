@@ -1,4 +1,4 @@
-from .apis import Registration, Login, LogOut, ChangePass, Activate, ForgetPass, SetPass
+from .apis import Registration, Login, LogOut, ChangePass, ForgetPass, SetPass, ActivateView
 
 user_routes = [
     (Registration, '/registration'),
@@ -6,7 +6,7 @@ user_routes = [
     (Login, '/login'),
     (LogOut, '/logout'),
     (ChangePass, '/changepass'),
-    (Activate, '/activate'),
+    # (ActivateView, '/activate'),
     (ForgetPass, '/forget'),
     (SetPass, '/setpass')
 ]

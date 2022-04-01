@@ -5,6 +5,7 @@ from db.utils import connect_db
 from routes import all_routes
 from flask_caching import Cache
 from dotenv import load_dotenv
+from user.apis import ActivateView
 load_dotenv()
 
 app = Flask(__name__)
@@ -30,6 +31,7 @@ def confirm_api():
 
 
 confirm_api()
+app.add_url_rule('/activate', view_func=ActivateView.as_view('activate'))
 
 if __name__ == "__main__":
     app.run(debug=True, port=80)

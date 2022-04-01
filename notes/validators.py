@@ -9,10 +9,10 @@ def validate_add_notes(body):
         return {'Error': 'You have to fill both parameters'}
     if body.get('color'):
         if body.get('color') not in color_choices:
-            return {'Error': 'Given color is not valid'}
+            return {'Error': 'Given color is not valid', 'code': 409}
 
 
 def validate_add_label(body):
     label = body.get('label')
     if not label:
-        return {'Error': 'Label can not be null'}
+        return {'Error': 'Label can not be null', 'code': 409}

@@ -11,13 +11,13 @@ class AddLabel(Resource):
     def post(self):
         req_data = request.data
         body = json.loads(req_data)
-        body['user_name'] = session['user_name']
+        body['user_id'] = session['user_id']
         valid_data = valid_add_label(body)
         if valid_data:
-            return valid_data
+            return {'data': valid_data, 'code': 500}
         lb = Label(**body)
         lb.save()
-        return {'message': 'label added'}
+        return {'message': 'label added', 'code': 200}
 
 
 class DeleteLabel(Resource):
@@ -25,9 +25,9 @@ class DeleteLabel(Resource):
 
     def delete(self, label):
         valid_data = valid_delete_label(label)
-        user_name = session['user_name']
+        user_id = session['user_id']
         if valid_data:
             return valid_data
-        lb = Label.objects.filter(user_name=user_name, label=label).first()
+        lb = Label.objects.filter(user_id=user_id, label=label).first()
         lb.delete()
-        return {'message': 'label deleted'}
+        return {'message': 'label deleted', 'code': 200}

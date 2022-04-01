@@ -1,8 +1,9 @@
-from mongoengine import Document, StringField, EmailField, DateTimeField, BooleanField
+from mongoengine import Document, StringField, EmailField, DateTimeField, BooleanField, SequenceField
 import datetime
 
 
 class Users(Document):
+    id = SequenceField(primary_key=True)
     user_name = StringField(max_length=50, unique=True)
     name = StringField(max_length=50)
     email = EmailField(unique=True)
