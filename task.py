@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Celery('task', broker="redis://localhost:6379/0", backend='redis://localhost')
-# app.conf['imports'] = ['task']
 
 
 @app.task()
@@ -24,6 +23,3 @@ def mail_sender(bodyContent, email):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(EMAIL_ADDRESS, EMAIL_PASS)
         smtp.send_message(msg)
-
-# celery -A task control shutdown
-# celery -A task worker --loglevel=info -P solo

@@ -5,6 +5,7 @@ from user.models import Users
 from .models import Message
 from middleware import auth
 from common.utils import get_cache, do_cache
+from common.custom_exceptions import NotFoundException, InternalServer
 
 
 class SendMessage(Resource):
@@ -16,11 +17,16 @@ class SendMessage(Resource):
         to_user = body.get('to_user')
         from_user = session['user_id']
         note_id = body.get('note_id')
-        note = Notes.objects.filter(user_id=from_user, id=note_id).first()
-        if not note:
-            return {'Error': 'Note not present', 'code': 500}
-        msg = Message(from_user=from_user, to_user=to_user, note=note)
-        msg.save()
+        try:
+            note = Notes.objects.filter(user_id=from_user, id=note_id).first()
+            if not note:
+                raise NotFoundException('Note not present', 404)
+            msg = Message(from_user=from_user, to_user=to_user, note=note)
+            msg.save()
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': f'Notes are sent to {to_user}', 'code': 200}
 
 
@@ -42,10 +48,10 @@ class CheckMessage(Resource):
         list_all = []
         for data in msg:
             dict_ = {'from': data.from_user,
-                     'notes': {'topic': data.note_id.topic,
-                               'desc': data.note_id.desc,
-                               'color': data.note_id.color,
-                               'label': [lb.label for lb in data.note_id.label]}}
+                     'notes': {'topic': data.note.topic,
+                               'desc': data.note.desc,
+                               'color': data.note.color,
+                               'label': [lb.label for lb in data.note.label]}}
             list_all.append(dict_)
         key = f'message_{user_id}'
         do_cache(key, list_all, 30)
@@ -57,12 +63,15 @@ class GiveAccess(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def get(self, msg_id):
-        msg = Message.objects.filter(id=msg_id).first()
-        note_id = msg.note.id
-        user_name = msg.to_user
-        note = Notes.objects.filter(id=note_id).first()
-        user = Users.objects.filter(user_name=user_name).first()
-        note.update(push__contributors=user)
+        try:
+            msg = Message.objects.filter(id=msg_id).first()
+            note_id = msg.note.id
+            user_name = msg.to_user
+            note = Notes.objects.filter(id=note_id).first()
+            user = Users.objects.filter(user_name=user_name).first()
+            note.update(push__contributors=user)
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Access is given', 'code': 200}
 
 
@@ -70,15 +79,20 @@ class MessageNote(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def post(self, msg_id):
-        msg = Message.objects.filter(id=msg_id).first()
-        note_id = msg.note_id.id
-        note = Notes.objects.filter(id=note_id).first()
-        user_list = [nt.id for nt in note.contributors]
-        if session['user_id'] not in user_list:
-            return {'Error': 'You are not allowed to change note', 'code': 409}
-        req_data = request.data
-        body = json.loads(req_data)
-        topic = body.get('topic')
-        desc = body.get('desc')
-        note.update(topic=topic, desc=desc)
+        try:
+            msg = Message.objects.filter(id=msg_id).first()
+            note_id = msg.note_id.id
+            note = Notes.objects.filter(id=note_id).first()
+            user_list = [nt.id for nt in note.contributors]
+            if session['user_id'] not in user_list:
+                raise InternalServer('You are not allowed to change note', 409)
+            req_data = request.data
+            body = json.loads(req_data)
+            topic = body.get('topic')
+            desc = body.get('desc')
+            note.update(topic=topic, desc=desc)
+        except InternalServer as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Given note updated', 'code': 200}

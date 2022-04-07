@@ -1,5 +1,5 @@
 from flask_restful import Resource
-from flask import request, make_response, session, jsonify, json
+from flask import request, session, json
 from .validators import validate_add_notes, validate_add_label
 from .utils import token_required
 from .models import Notes
@@ -8,12 +8,7 @@ from user import models
 from middleware import auth
 from common.custome_logger import logger
 from common.utils import get_cache, do_cache
-import redis
-
-r = redis.Redis(
-    host='localhost',
-    port=6379
-)
+from common.custom_exceptions import NotFoundException, AlreadyExistException
 
 
 class AddNote(Resource):
@@ -23,15 +18,27 @@ class AddNote(Resource):
         req_data = request.data
         body = json.loads(req_data)
         # image_ = request.files['image']
-        body['user_id'] = session['user_id']
-        user = models.Users.objects.filter(id=session['user_id']).first()
-        body['user_name'] = user.user_name
-        validated_data = validate_add_notes(body)
-        if validated_data:
-            return {'data': validated_data, 'code': 409}
-        notes = Notes(**body)
-        # notes.image.replace(image_, filename='my_image')
-        notes.save()
+        try:
+            body['user_id'] = session['user_id']
+            user = models.Users.objects.filter(id=session['user_id']).first()
+            body['user_name'] = user.user_name
+            label_ = body['label']
+            del body['label']
+            validated_data = validate_add_notes(body)
+            if validated_data:
+                return {'data': validated_data, 'code': 409}
+            notes = Notes(**body)
+            # notes.image.replace(image_, filename='my_image')
+            notes.save()
+            # label = body.get('label')
+            if label_:
+                lb = md.Label.objects.filter(user_id=session['user_id'], label=label_).first()
+                if not lb:
+                    lb = md.Label(user_id=session['user_id'], label=label_)
+                    lb.save()
+                notes.update(push__label=lb)
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         logger.info(f'Notes added by User: {notes.user_name}')
         return {'message': 'Notes Added', 'code': 200}
 
@@ -42,23 +49,26 @@ class NotesOperation(Resource):
     def patch(self, note_id):
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id']).first()
+            desc = request.form.get('Description')
+            note.update(desc=desc)
         except Exception as e:
-            return {'Error': str(e)}
-        desc = request.form.get('Description')
-        note.update(desc=desc)
+            return {'Error': str(e), 'code': 500}
         logger.info(f'Notes are updated of id:{note_id} by User_id: {session["user_id"]}')
         return {'message': 'Notes updated', 'code': 200}
 
     def delete(self, note_id):
         try:
             note = Notes.objects.filter(id=note_id,  user_id=session['user_id']).first()
-        except Exception as e:
-            return {'Error': str(e)}
-        if note.is_trash:
-            note.delete()
+            if not note.is_trash:
+                raise NotFoundException('Note not found in trash', 404)
+            if note.is_trash:
+                note.delete()
             logger.info(f'Notes are deleted of id:{note_id} by User_id: {session["user_id"]}')
             return {'message': 'Notes Deleted', 'code': 200}
-        return {'Error': 'To delete first move it to trash', 'code': 409}
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
 
 
 class NoteLabel(Resource):
@@ -72,20 +82,26 @@ class NoteLabel(Resource):
             return {'data': validate_data, 'code': 404}
         label = body.get('label')
         user_id = session['user_id']
-        label_data = md.Label.objects.filter(user_id=user_id, label=label).first()
-        if not label_data:
-            label_data = md.Label(user_id=user_id, label=label)
-            label_data.save()
         try:
+            label_data = md.Label.objects.filter(user_id=user_id, label=label).first()
+            if not label_data:
+                label_data = md.Label(user_id=user_id, label=label)
+                label_data.save()
             note = Notes.objects.filter(user_id=session['user_id'], id=note_id).first()
             if not note:
-                return {'Error': 'Note is not present', 'code': 404}
+                raise NotFoundException('Note is not present', 404)
+                # return {'Error': 'Note is not present', 'code': 404}
+            for data in note.label:
+                if data.label == label:
+                    raise AlreadyExistException('label already present in this note', 404)
+                    # return {'Error': 'label already present in this note', 'code': 404}
+            note.update(push__label=label_data)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except AlreadyExistException as exception:
+            return exception.__dict__
         except Exception as e:
-            return {'Error': str(e)}
-        for data in note.label:
-            if data.label == label:
-                return {'Error': 'label already present in this note', 'code': 404}
-        note.update(push__label=label_data)
+            return {'Error': str(e), 'code': 500}
         logger.info(f'Label is added to notes of id:{note_id} by User_id: {session["user_id"]}')
         return {'message': 'label added', 'code': 200}
 
@@ -168,12 +184,12 @@ class Home(Resource):
             dict_all = {}
             data_user = models.Users.objects()
             for data in data_user:
-                note = Notes.objects.filter(user_id=data.user_id, is_trash=False, is_pinned=True)
+                note = Notes.objects.filter(user_id=data.id, is_trash=False, is_pinned=True)
                 list_user = []
                 for itr in note:
                     dict_itr = {'id': itr.id, 'user_id': itr.user_id, 'topic': itr.topic, 'desc': itr.desc, 'color': itr.color, 'label': [lb.label for lb in itr.label]}
                     list_user.append(dict_itr)
-                note = Notes.objects.filter(user_id=data.user_id, is_trash=False, is_pinned=False)
+                note = Notes.objects.filter(user_id=data.id, is_trash=False, is_pinned=False)
                 for itr in note:
                     dict_itr = {'id': itr.id, 'user_id': itr.user_id, 'topic': itr.topic, 'desc': itr.desc, 'color': itr.color, 'label': [lb.label for lb in itr.label]}
                     list_user.append(dict_itr)
@@ -201,10 +217,15 @@ class PinNote(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
-        note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
-        if not note:
-            return {'Error': 'Note not found', 'code': 404}
-        note.update(is_pinned=True)
+        try:
+            note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
+            if not note:
+                raise NotFoundException('Note not found', 404)
+            note.update(is_pinned=True)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Note is pinned', 'code': 200}
 
 
@@ -212,10 +233,15 @@ class UnpinNote(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
-        note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
-        if not note:
-            return {'Error': 'Note not found', 'code': 404}
-        note.update(is_pinned=False)
+        try:
+            note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
+            if not note:
+                raise NotFoundException('Note not found', 404)
+            note.update(is_pinned=False)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Note is Unpinned', 'code': 200}
 
 
@@ -223,10 +249,15 @@ class NoteAddTrash(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
-        note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
-        if not note:
-            return {'Error': 'Note not found', 'code': 404}
-        note.update(is_trash=True)
+        try:
+            note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
+            if not note:
+                raise NotFoundException('Note not found', 404)
+            note.update(is_trash=True)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Note is moved to trash', 'code': 200}
 
 
@@ -234,8 +265,13 @@ class NoteRemoveTrash(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
-        note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
-        if not note:
-            return {'Error': 'Note not found', 'code': 404}
-        note.update(is_trash=False)
+        try:
+            note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
+            if not note:
+                raise NotFoundException('Note not found', 404)
+            note.update(is_trash=False)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         return {'message': 'Note is removed from trash', 'code': 200}

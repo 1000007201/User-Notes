@@ -8,7 +8,7 @@ from common import utils
 from middleware import auth
 from common import custome_logger
 from task import mail_sender
-# from common.task import mail_sender
+from common.custom_exceptions import NullValueException, NotFoundException
 
 
 class Registration(Resource):
@@ -19,17 +19,19 @@ class Registration(Resource):
         if validated_data:
             return make_response(validated_data, 409)
         del body['conf_password']
-        data = Users(**body)
-        data.save()
-        custome_logger.logger.info(f'New user is added of username: {data.user_name}')
-        token = get_token(data.id)
-        short_token = utils.token_short(token)
-        token_url = r"http://127.0.0.1:80/activate?token="+f"{short_token}"
-        # msg_text = f"Hello! {body['name']} click the link to activate your account {token_url}"
-        template = render_template('index.html', data=token_url)
-        mail_sender.delay(template, body['email'])
+        try:
+            data = Users(**body)
+            data.save()
+            custome_logger.logger.info(f'New user is added of username: {data.user_name}')
+            token = get_token(data.id)
+            short_token = utils.token_short(token)
+            token_url = r"http://127.0.0.1:80/activate?token="+f"{short_token}"
+            template = render_template('index.html', data=token_url)
+            mail_sender.delay(template, body['email'])
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         custome_logger.logger.info(f'Mail sent for activation of account to registered mail id of User: {data.user_name}')
-        return {'message': 'User Added Check your registered mail id to activate account'}
+        return {'message': 'User Added Check your registered mail id to activate account', 'code': 200}
 
 
 class Login(Resource):
@@ -39,7 +41,7 @@ class Login(Resource):
         body['password'] = request.form.get('password')
         validate_data = validate_login(body)
         if 'Error' in validate_data:
-            return {'data': validate_data, 'code': 404}
+            return {'data': validate_data}
         if 'Error_active' in validate_data:
             token = get_token(validate_data['user_id'])
             short_token = utils.token_short(token)
@@ -50,6 +52,7 @@ class Login(Resource):
                                'mail id', 'code': 200}
         token = get_token(validate_data['user_id'])
         short_token = utils.token_short(token)
+        session.clear()
         session['logged_in'] = True
         session['user_id'] = validate_data['user_id']
         custome_logger.logger.info(f'User: {body["user_name"]} logged in')
@@ -68,8 +71,11 @@ class ChangePass(Resource):
         else:
             user_id = session['user_id']
             new_pass1 = body.get('new_password')
-            data_ = Users.objects.filter(id=user_id).first()
-            data_.update(password=new_pass1)
+            try:
+                data_ = Users.objects.filter(id=user_id).first()
+                data_.update(password=new_pass1)
+            except Exception as e:
+                return {'Error': str(e), 'code': 500}
             custome_logger.logger.info(f'User_id:{user_id} changed his password')
             return {'message': 'Your Password is Updated', 'code': 200}
 
@@ -77,17 +83,21 @@ class ChangePass(Resource):
 class ForgetPass(Resource):
     def post(self):
         user_id = request.form.get('user_id')
-        data_ = Users.objects.filter(id=user_id).first()
-        if not data_:
-            return {'Error': 'User not found!!', 'code': 200}
-        email = data_.Email
-        custome_logger.logger.info(f'User_id:{user_id} has been forgotten his password')
-        token = get_token(user_id)
-        short_token = utils.token_short(token)
-        token_url = r'http://127.0.0.1:80/setpass?token='+f'{short_token}'
-        # msg_text = f"Hello! {name} click the link to activate your account {token_url}"
-        template = render_template('forget.html', data=token_url)
-        mail_sender.delay(template, email)
+        try:
+            data_ = Users.objects.filter(id=user_id).first()
+            if not data_:
+                raise NotFoundException('User not found!!', 404)
+            email = data_.Email
+            custome_logger.logger.info(f'User_id:{user_id} has been forgotten his password')
+            token = get_token(user_id)
+            short_token = utils.token_short(token)
+            token_url = r'http://127.0.0.1:80/setpass?token='+f'{short_token}'
+            template = render_template('forget.html', data=token_url)
+            mail_sender.delay(template, email)
+        except NotFoundException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         custome_logger.logger.info(f'Mail is sent to registered mail id of user_id : {user_id} to set new password')
         return {'message': 'Check your Registered Mail ID to set new Password.', 'code': 200}
 
@@ -96,8 +106,11 @@ class ActivateView(MethodView):
     decorators = [token_required]
 
     def get(self, user_id):
-        data = Users.objects.filter(id=user_id).first()
-        data.update(is_active=True)
+        try:
+            data = Users.objects.filter(id=user_id).first()
+            data.update(is_active=True)
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
         custome_logger.logger.info(f'User_id: {user_id} activated his account')
         data = {'message': 'Your Account is Active.Now you can login'}
         return render_template('activate.html', data=data)
@@ -107,20 +120,26 @@ class SetPass(Resource):
     method_decorators = {'post': [token_required]}
 
     def post(self, user_id):
-        data = Users.objects(id=user_id).first()
         password1 = request.form.get('new password')
         password2 = request.form.get('Re-Enter Password')
-        if not password2 or not password1:
-            return {'message': 'Password1 and Password2 can not be empty', 'code': 409}
-        if password1 == password2:
-            data.update(Password=password1)
-            custome_logger.logger.info(f'User_id: {user_id} has updated his password by forgot password')
-            return {'message': 'Your Password is Set Now you can Login', 'code': 200}
-        return {'message': 'New Password and Re-Enter Password must be same', 'code': 409}
+        try:
+            data = Users.objects(id=user_id).first()
+            if not password2 or not password1:
+                raise NullValueException('Password1 and Password2 can not be empty', 409)
+            if password1 != password2:
+                raise NullValueException('New Password and Re-Enter Password must be same', 409)
+            if password1 == password2:
+                data.update(Password=password1)
+        except NullValueException as exception:
+            return exception.__dict__
+        except Exception as e:
+            return {'Error': str(e), 'code': 500}
+        custome_logger.logger.info(f'User_id: {user_id} has updated his password by forgot password')
+        return {'message': 'Your Password is Set Now you can Login', 'code': 200}
 
 
 class LogOut(Resource):
     def get(self):
-        session['logged_in'] = False
+        session.clear()
         custome_logger.logger.info(f'logged out')
         return {'message': 'logged out'}
