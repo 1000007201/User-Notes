@@ -13,6 +13,11 @@ from common.custom_exceptions import NullValueException, NotFoundException
 
 class Registration(Resource):
     def post(self):
+        """
+        This api is for user registration to this application
+        @param request: user registration data like username, email, password
+         @return: account verification link to registered email once registration is successful
+        """
         req_data = request.data
         body = json.loads(req_data)
         validated_data = validate_registration(body)
@@ -36,6 +41,11 @@ class Registration(Resource):
 
 class Login(Resource):
     def post(self):
+        """
+        This API is used to authenticate user to access resources
+        @param request: user credential like username and password
+        @return: Returns success message and access token on successful login
+        """
         body = {}
         body['user_name'] = request.form.get('user_name')
         body['password'] = request.form.get('password')
@@ -63,6 +73,11 @@ class ChangePass(Resource):
     method_decorators = {'post': [auth.login_required]}
 
     def post(self):
+        """
+        This API accepts the changes the current password
+        @param : current password and new password
+        @return: success message and new password
+        """
         req_data = request.data
         body = json.loads(req_data)
         validated_data = validate_change_pass(body)
@@ -82,6 +97,11 @@ class ChangePass(Resource):
 
 class ForgetPass(Resource):
     def post(self):
+        """
+        This API accepts the get request hit from the email on clicked on link
+        @param : email and token
+        @return: success message
+        """
         user_id = request.form.get('user_id')
         try:
             data_ = Users.objects.filter(id=user_id).first()
@@ -106,6 +126,11 @@ class ActivateView(MethodView):
     decorators = [token_required]
 
     def get(self, user_id):
+        """
+        This Api verifies the user-id and jwt token sent to the email and activates the account
+        @param request: Get request hits with jwt token which contains user information
+        @return: Account activation confirmation
+        """
         try:
             data = Users.objects.filter(id=user_id).first()
             data.update(is_active=True)
@@ -120,6 +145,11 @@ class SetPass(Resource):
     method_decorators = {'post': [token_required]}
 
     def post(self, user_id):
+        """
+        Api to set new password for account
+        :param user_id: ID of user who wants to change password
+        :return: Response message
+        """
         password1 = request.form.get('new password')
         password2 = request.form.get('Re-Enter Password')
         try:
@@ -140,6 +170,10 @@ class SetPass(Resource):
 
 class LogOut(Resource):
     def get(self):
+        """
+        Api clear all data in session
+        :return: response for data cleared
+        """
         session.clear()
         custome_logger.logger.info(f'logged out')
         return {'message': 'logged out'}

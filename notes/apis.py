@@ -15,6 +15,10 @@ class AddNote(Resource):
     method_decorators = {'post': [auth.login_required]}
 
     def post(self):
+        """
+        This API is used to create a note for user
+        :return: creates note on successful validation
+        """
         req_data = request.data
         body = json.loads(req_data)
         # image_ = request.files['image']
@@ -47,6 +51,11 @@ class NotesOperation(Resource):
     method_decorators = {'patch': [auth.login_required], 'delete': [auth.login_required]}
 
     def patch(self, note_id):
+        """
+        This Api updates the values for given note
+        :param note_id: ID of note which you want to update
+        :return: Response message if note is updated
+        """
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id']).first()
             desc = request.form.get('Description')
@@ -57,6 +66,11 @@ class NotesOperation(Resource):
         return {'message': 'Notes updated', 'code': 200}
 
     def delete(self, note_id):
+        """
+        This Api delete the given note
+        :param note_id: ID of note which you want to delete
+        :return: Response message if note is deleted
+        """
         try:
             note = Notes.objects.filter(id=note_id,  user_id=session['user_id']).first()
             if not note.is_trash:
@@ -75,6 +89,11 @@ class NoteLabel(Resource):
     method_decorators = {'post': [auth.login_required], 'patch': [auth.login_required], 'delete': [auth.login_required]}
 
     def post(self, note_id):
+        """
+        This Api adds label in given note
+        :param note_id: ID of note in which you have to add label
+        :return: Response message after validating things
+        """
         req_data = request.data
         body = json.loads(req_data)
         validate_data = validate_add_label(body)
@@ -106,6 +125,11 @@ class NoteLabel(Resource):
         return {'message': 'label added', 'code': 200}
 
     def patch(self, note_id):
+        """
+        This Api updates label in given note
+        :param note_id: ID of note in which you have to update label
+        :return: Response message after validating things
+        """
         req_data = request.data
         body = json.loads(req_data)
         old_label = body.get('label')
@@ -127,6 +151,11 @@ class NoteLabel(Resource):
         return {'Error': 'Label not present in given note', 'code': 404}
 
     def delete(self, note_id):
+        """
+        This Api deletes label in given note
+        :param note_id: ID of note in which you have to delete label
+        :return: Response message after validating things
+        """
         req_data = request.data
         body = json.loads(req_data)
         label = body.get('label')
@@ -149,6 +178,11 @@ class GetByLabel(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def get(self, label):
+        """
+        This Api display all notes having given label
+        :param label: label which you have to get
+        :return: List of notes having that label
+        """
         user_id = session['user_id']
         key = f'getbylabel_{user_id}'
         value = get_cache(key)
@@ -172,6 +206,10 @@ class Home(Resource):
     method_decorators = {'get': [token_required]}
 
     def get(self, user_id):
+        """
+        This API is used to fetch all notes of the user
+        @return: returns all notes
+        """
         key = f'home_{user_id}'
         value = get_cache(key)
         if value:
@@ -217,6 +255,11 @@ class PinNote(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
+        """
+        This Api pin the given note
+        :param note_id: ID of note which you have to pin
+        :return: Response message after all validations
+        """
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
             if not note:
@@ -233,6 +276,11 @@ class UnpinNote(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
+        """
+        This Api removes the note from pin
+        :param note_id: Note ID which you have to unpin
+        :return: Response message after validation
+        """
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
             if not note:
@@ -249,6 +297,11 @@ class NoteAddTrash(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
+        """
+        This Api Add the note to Trash
+        :param note_id: Note ID of note
+        :return: Response message after all validations
+        """
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
             if not note:
@@ -265,6 +318,11 @@ class NoteRemoveTrash(Resource):
     method_decorators = {'patch': [auth.login_required]}
 
     def patch(self, note_id):
+        """
+        This Api removes the note from Trash
+        :param note_id: Note ID
+        :return: Response message after removing it from trash
+        """
         try:
             note = Notes.objects.filter(id=note_id, user_id=session['user_id'])
             if not note:

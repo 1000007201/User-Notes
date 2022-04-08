@@ -2,7 +2,7 @@ import pytest
 from notes.apis import GetByLabel
 from main import app
 import json
-# from flask import session
+from flask import session
 
 # get_by_label = GetByLabel()
 
@@ -22,8 +22,13 @@ def test_register():
 
 
 def test_label():
-    with app.test_client().session_transaction() as session:
+    # with app.test_client().session_transaction() as session:
+    #     session['logged_in'] = True
+    @app.route('/set/session')
+    def set():
         session['logged_in'] = True
-
+        session['user_id'] = 2
+        return {'message': 'session set'}
+    app.test_client().get('/set/session')
     response = app.test_client().get('/api/getbylabel/hii')
     assert response.status_code == 200

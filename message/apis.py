@@ -12,6 +12,10 @@ class SendMessage(Resource):
     method_decorators = {'post': [auth.login_required]}
 
     def post(self):
+        """
+        This Api adds new message
+        :return: Response message after all validations
+        """
         req_data = request.data
         body = json.loads(req_data)
         to_user = body.get('to_user')
@@ -34,6 +38,10 @@ class CheckMessage(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def get(self):
+        """
+        This Api returns all messages
+        :return: list of notes messaged
+        """
         user_id = session['user_id']
         key = f'message_{user_id}'
         value = get_cache(key)
@@ -63,6 +71,11 @@ class GiveAccess(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def get(self, msg_id):
+        """
+        This Api adds user_id to contributors
+        :param msg_id: ID of message having that note
+        :return: Response message after all validations
+        """
         try:
             msg = Message.objects.filter(id=msg_id).first()
             note_id = msg.note.id
@@ -79,6 +92,11 @@ class MessageNote(Resource):
     method_decorators = {'get': [auth.login_required]}
 
     def post(self, msg_id):
+        """
+        This Api make changes in message Note
+        :param msg_id: ID of message
+        :return: Response after all validations
+        """
         try:
             msg = Message.objects.filter(id=msg_id).first()
             note_id = msg.note_id.id
